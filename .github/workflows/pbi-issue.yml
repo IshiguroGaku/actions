@@ -1,0 +1,40 @@
+name: pbi-issue
+on:
+  pull_request:
+    types: [opened, edited]
+
+jobs:
+  pbi-issue:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Get pull request number
+        run: |
+          pr=$(curl -X GET -H "authorization: Bearer ${{ github.token }}" \
+                  https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ github.base_ref }}&per_page=1)
+          echo "::set-output name=pr_number::$(echo "$pr" | jq '.[].number')"
+        id: get-pr-number
+        shell: bash
+      - name: Set pbi issue
+        run: |
+          ruby -r json -r shellwords -e '
+            current_pr_body = JSON.parse(File.read(ENV["GITHUB_EVENT_PATH"]))["pull_request"]["body"]
+
+            has_pbi_issue = /## PBI Issue\s+- #\d+/.match?(current_pr_body)
+            return if has_pbi_issue # 既に設定されていたらスキップ
+
+            parent_pr = JSON.parse(`curl -H "authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.get-pr-number.outputs.pr_number }}"`)
+
+            matched = /## PBI Issue\s+- #(?<issue_no>\d+)/.match(parent_pr["body"])
+            return if matched.nil? # 親ブランチにPBI Issueが設定されてなければスキップ
+
+            issue_no = matched[:issue_no]
+            new_body = current_pr_body.gsub(/## PBI Issue\s+- #issue_no/, "## PBI Issue\n\n- ##{issue_no}")
+
+            params = {body: new_body}
+            `curl -X PATCH -H "authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.number }}" \
+            -d #{Shellwords.escape(params.to_json)}`
+          '
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/pbi-milestone
