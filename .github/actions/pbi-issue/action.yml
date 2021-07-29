@@ -1,0 +1,5 @@
+name: 'pbi-issue'
+author: 'ishiguro'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
