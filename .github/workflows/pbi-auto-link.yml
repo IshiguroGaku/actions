@@ -1,0 +1,19 @@
+name: pbi-auto-link
+on:
+  pull_request:
+    types: [opened, edited]
+
+jobs:
+  pbi-auto-link:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: set pbi issue
+        run: |
+          ruby -r json -r shellwords -e '
+            event_json  = JSON.parse(File.read(ENV["GITHUB_EVENT_PATH"]))
+
+            base_pr = JSON.parse(`curl -H "authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?head=#{event_json["pull_request"]["base"]["label"]}"`)
+
+            p base_pr["body"]
+          '
