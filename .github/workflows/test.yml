@@ -1,0 +1,14 @@
+name: pbi-auto-link
+on:
+  pull_request:
+    types: [review_requested, closed]
+
+jobs:
+  pbi-auto-link:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: test action
+        run: |
+          ruby -r json -r shellwords -e '
+            p "start"
+          '
